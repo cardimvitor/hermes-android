@@ -16,8 +16,10 @@ from pathlib import Path
 
 # Windows-only packages, the git-pinned psutil (the Chaquopy wheel is used on Android instead),
 # and nemo-relay, which the upstream Termux package also leaves out: its toolchain does not
-# build for this target.
-SKIP = re.compile(r"^(pywin32|pywinpty|winrt-|tzdata|psutil @ git|nemo-relay)")
+# build for this target. firecrawl-anydoc ships no Android wheel on the Chaquopy index (only
+# musllinux, win_amd64 and an sdist), so pip cannot install it; PDF reads are unavailable on
+# the APK until a wheel exists or the upstream pin changes.
+SKIP = re.compile(r"^(pywin32|pywinpty|winrt-|tzdata|psutil @ git|nemo-relay|firecrawl-anydoc)")
 NAME = re.compile(r"^\s*([A-Za-z0-9_.\-\[\],]+?)\s*(==|>=|<=|>|<|~=|@|;|$)")
 
 

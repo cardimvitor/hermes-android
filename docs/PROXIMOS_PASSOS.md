@@ -66,3 +66,9 @@ que a resposta aparece e que um comando perigoso gera o diálogo de aprovação.
 - **Bloqueio (passo 3.5):** `installDebugPythonRequirements` falha em
   `firecrawl-anydoc==0.2.4` ("from versions: none"). O pacote só tem wheels `musllinux`/`win_amd64` e sdist no PyPI, sem wheel Android. O pin vem de `upstream/hermes-agent/pyproject.toml`, linha 66 (dependência principal, `python_version >= '3.14'`), e é mantido pelo exportador `tools/export_android_requirements.py`. Não foi trocado nem removido: decisão de produto, a ser tomada pelo responsável.
 - Passos 4 (gate 16 KB) e 5 (aparelho) não executados: dependem de APK.
+
+## Atualização: exclusão de firecrawl-anydoc e novo bloqueio
+- `tools/export_android_requirements.py` agora exclui `firecrawl-anydoc` (sem wheel Android). `app/requirements-android.txt` regenerado. Consequência: leitura de PDF indisponível no APK.
+- Próximo bloqueio: `installDebugPythonRequirements` falha em `cryptography==50.0.1` (sem wheel Android).
+- Causa raiz: o índice do Chaquopy (`https://chaquo.com/pypi-13.1/<pacote>/`) não tem wheels Android `cp314` para os binários. Os mais recentes são `cp313` (cryptography 42.0.8, Pillow, psutil). `resvg-py` e `pydantic-core` não aparecem no índice.
+- Decisão necessária: (a) Python 3.13 no APK, o que quebra a exigência `>=3.14` e as dependências gated a 3.14 do upstream; (b) aguardar wheels cp314 do Chaquopy; (c) compilar as wheels com a toolchain do Chaquopy.

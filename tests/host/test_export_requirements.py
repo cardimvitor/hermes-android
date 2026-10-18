@@ -14,3 +14,5 @@ def test_requirements_have_no_markers_and_no_desktop_only_packages(tmp_path):
     assert "pywin32" not in text and "nemo-relay" not in text and "git+" not in text
     assert "pydantic==2.13.4" in text
     assert any(s.startswith("nemo-relay") for s in skipped)
+    assert "firecrawl-anydoc" not in text
+    assert any(s.startswith("firecrawl-anydoc") for s in skipped)

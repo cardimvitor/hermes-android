@@ -76,17 +76,37 @@ class _LineOutput(io.TextIOBase):
         return False
 
 
-def start(home, sink):
+def configure_model(home, provider, model):
+    """Write ``model.provider`` / ``model.default`` to ``config.yaml`` if the file does not exist.
+
+    An existing file is left untouched, so settings the user changed later are never overwritten.
+    Without this the gateway falls back to AWS Bedrock, which the APK does not ship.
+    """
+    path = os.path.join(home, "config.yaml")
+    if os.path.exists(path):
+        return False
+    os.makedirs(home, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(f"model:\n  provider: {provider}\n  default: {model}\n")
+    return True
+
+
+def start(home, sink, env=None):
     """Start the gateway in a background thread.
 
     ``home`` becomes ``HERMES_HOME`` (the app's private files directory on Android).
-    ``sink`` is any object with an ``onLine(str)`` method.
+    ``sink`` is any object with an ``onLine(str)`` method. ``env`` adds variables such as
+    provider API keys; the caller decides where they come from.
     """
     global _input
     with _lock:
         if _input is not None:
             raise RuntimeError("hermes gateway already started")
+        os.environ.update(env or {})
         os.environ["HERMES_HOME"] = home
+        # The APK ships every dependency it needs. Lazy installs would try pip at runtime, which
+        # Android app sandboxes do not allow (and which Play policy forbids for code download).
+        os.environ["HERMES_DISABLE_LAZY_INSTALLS"] = "1"
         _input = _LineInput()
         # Swap the streams before importing the gateway: tui_gateway.server captures sys.stdout
         # at import time as its RPC channel.

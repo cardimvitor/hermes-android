@@ -12,6 +12,9 @@ interface LineSink {
 /** Owns the single in-process gateway. Creating it imports the Hermes Python package (slow). */
 object HermesRuntime {
 
+    private const val DEFAULT_PROVIDER = "deepseek"
+    private const val DEFAULT_MODEL = "deepseek-flash"
+
     private val lock = Any()
     private var gateway: GatewayClient? = null
 
@@ -27,8 +30,12 @@ object HermesRuntime {
             override fun onLine(line: String) = client.onLine(line)
         }
         // Private app storage: sessions, memory, skills and credentials live under filesDir.
-        val home = File(app.filesDir, "hermes").apply { mkdirs() }
-        bridge.callAttr("start", home.absolutePath, sink)
+        val home = File(app.filesDir, "hermes").apply { mkdirs() }.absolutePath
+        // First run only: without a provider the gateway falls back to AWS Bedrock, which the APK
+        // does not ship. Provider and key selection in the UI is still to be built (plan, phase 5).
+        bridge.callAttr("configure_model", home, DEFAULT_PROVIDER, DEFAULT_MODEL)
+        // No provider keys yet: they will come from the Android Keystore, not from plain storage.
+        bridge.callAttr("start", home, sink, null)
         return client
     }
 }

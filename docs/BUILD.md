@@ -25,6 +25,11 @@ Cobertura atual:
 - `test_check_elf_16kb.py`: detector de alinhamento 4 KB / 16 KB com ELFs sintéticos.
 - `test_export_requirements.py`: a lista Android não tem marcadores nem pacotes só de desktop.
 
+## Dados de rede necessários para o build
+O build precisa destes domínios liberados: `dl.google.com` (SDK e AGP),
+`maven.google.com`, `repo1.maven.org`, `chaquo.com` (wheels do Chaquopy) e
+`www.python.org` (somente se o Python for baixado manualmente).
+
 ## Gate de 16 KB (sobre o APK construído)
 ```bash
 python3 tools/check_elf_16kb.py app/build/intermediates/merged_native_libs

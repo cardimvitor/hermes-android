@@ -122,6 +122,9 @@ Antes de implementar, cada premissa foi testada. Resultado:
 | `requirements` a partir do `pyproject` | Marcadores `python_version >= '3.14'` são avaliados pelo Python do **computador de build**, não pelo alvo. | `tools/export_android_requirements.py` remove os marcadores; `nemo-relay` excluído (como no Termux). |
 | Gate de 16 KB | Verificador testado: detecta alinhamento 4 KB (45/45 libs do host x86_64 falham, como esperado; libc também). | `tools/check_elf_16kb.py`. Só prova a detecção; o APK real precisa passar nele. |
 
+| Provedor padrão do gateway | Sem configuração, o Hermes escolhe **AWS Bedrock**, que exige `boto3` (não empacotado no APK). A UI recebia um erro confuso depois de 3 tentativas. | `hermes_bridge.configure_model` grava `model.provider`/`model.default` na primeira execução (padrão: `deepseek`/`deepseek-flash`). Verificado: com o DeepSeek configurado, a requisição vai para o DeepSeek, não para o Bedrock. |
+| Instalação preguiçosa em runtime | Desligável por `HERMES_DISABLE_LAZY_INSTALLS=1` (`hermes_cli/update_pause_record.py`). Com a variável, os avisos de instalação somem nos logs. | Definida em `hermes_bridge.start`. |
+
 **Não verificado neste ambiente** (bloqueado pela rede do sandbox):
 - Android SDK/NDK e Chaquopy pip (`chaquo.com`) — `dl.google.com`, `python.org`, `chaquo.com` retornam 403/erro de proxy.
 - Build do APK e execução em aparelho/emulador. A checagem de Kotlin usou o compilador do Kotlin (Maven Central): `GatewayClient.kt` compila sem erros; os demais arquivos só falham por símbolos do Android/Compose/Chaquopy que não estão no host.

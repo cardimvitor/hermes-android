@@ -89,3 +89,9 @@ que a resposta aparece e que um comando perigoso gera o diálogo de aprovação.
 - Exclusões do APK: `firecrawl-anydoc` (leitura de PDF indisponível) e `pillow-heif` (HEIC/HEIF indisponível). O núcleo importa ambos de forma opcional.
 - **Não validado:** execução em aparelho ou emulador (sem KVM nesta sandbox). Os módulos nativos nunca foram importados num Android real. O passo 5 continua pendente.
 - Pendências para tornar o build reproduzível a partir do git: publicar os wheels (release asset ou índice próprio) e decidir como o `build.gradle.kts` aponta para eles.
+
+## Crash ao abrir o app: ImportError PyLong_Type (2026-10-18)
+- Sintoma: `ImportError: dlopen failed: cannot locate symbol "PyLong_Type"` ao importar `pydantic_core`.
+- Causa: as extensões cross-compiladas não declaravam `NEEDED libpython3.14.so`. Os módulos do próprio Chaquopy declaram, e o APK traz essa biblioteca em `lib/<abi>/`.
+- Correção aplicada nos wheels: `patchelf --add-needed libpython3.14.so` em cada `.so` (ver o script de wheels fora do repositório). Qualquer módulo nativo recompilado precisa dessa dependência.
+- O app mostra o erro de inicialização na tela (`ChatViewModel`, `HermesApplication`, `GatewayService`), em vez de fechar.

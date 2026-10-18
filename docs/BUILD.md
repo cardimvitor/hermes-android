@@ -44,6 +44,8 @@ python3 tools/check_elf_16kb.py app/build/intermediates/merged_native_libs
 Só deve ser considerado válido sobre bibliotecas compiladas para Android.
 
 ## Build do APK
+Próximos passos e verificações de rede para outra sessão: `docs/PROXIMOS_PASSOS.md`.
+
 ```bash
 ./gradlew :app:assembleDebug
 ```

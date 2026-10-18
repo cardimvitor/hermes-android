@@ -79,3 +79,13 @@ que a resposta aparece e que um comando perigoso gera o diálogo de aprovação.
 - Sem wheel Android em nenhuma versão no índice: `pydantic-core` (dependência de `pydantic==2.13.4`, núcleo do agente) e `resvg-py==0.4.0`. Isso bloqueia 3.13 e 3.14.
 - Firecrawl-anydoc: wheels só para macOS/manylinux/musllinux/Windows e sdist. Não há tag Android.
 - Conclusão: nenhuma das duas versões de Python fecha o build com o índice atual do Chaquopy. Próximos passos viáveis: compilar `pydantic-core` (Rust, cross-compile para Android) e as wheels nativas com a toolchain do Chaquopy, ou pedir ao Chaquopy as wheels cp314/android.
+
+## Resultado: APK debug montado com wheels Android locais (2026-10-18)
+- `./gradlew :app:assembleDebug` (teste em cópia isolada, fora do repositório): BUILD SUCCESSFUL, `arm64-v8a` e `x86_64`.
+- Gate de 16 KB (`tools/check_elf_16kb.py`): `checked=20 failed=0`.
+- Módulos nativos empacotados nos dois ABIs (`requirements-<abi>.imy`): pydantic-core, cryptography (Rust, sem cffi), resvg-py, psutil, Pillow (sem JPEG/FreeType/TIFF/LCMS/WebP), httptools, jiter, watchfiles.
+- Wheels compilados com NDK 27 via cargo/setup.py cruzados, tag `cp314-cp314-android_24_<abi>`. Pacotes abi3 foram reetiquetados como `cp314-cp314` porque o índice do Chaquopy não publica tags abi3.
+- Como montar: `app/wheels-local/` (não versionado) + `options("--find-links", "wheels-local")` no bloco `pip { }` do `app/build.gradle.kts`. Chaquopy ignora `--find-links` dentro de `requirements-android.txt` na passagem do x86_64.
+- Exclusões do APK: `firecrawl-anydoc` (leitura de PDF indisponível) e `pillow-heif` (HEIC/HEIF indisponível). O núcleo importa ambos de forma opcional.
+- **Não validado:** execução em aparelho ou emulador (sem KVM nesta sandbox). Os módulos nativos nunca foram importados num Android real. O passo 5 continua pendente.
+- Pendências para tornar o build reproduzível a partir do git: publicar os wheels (release asset ou índice próprio) e decidir como o `build.gradle.kts` aponta para eles.

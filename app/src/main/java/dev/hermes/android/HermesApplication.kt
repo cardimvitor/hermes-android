@@ -8,9 +8,19 @@ class HermesApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         // Chaquopy starts the embedded interpreter once per process. Starting it here keeps the
-        // (slow) first import off the UI thread.
+        // (slow) first import off the UI thread. A failure is recorded, not thrown, so the UI can show it.
         if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(this))
+            try {
+                Python.start(AndroidPlatform(this))
+            } catch (e: Throwable) {
+                startError = e.toString()
+            }
         }
+    }
+
+    companion object {
+        /** Set when the embedded Python interpreter fails to start. Read by the chat screen. */
+        @Volatile
+        var startError: String? = null
     }
 }

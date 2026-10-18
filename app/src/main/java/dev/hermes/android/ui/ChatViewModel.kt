@@ -3,6 +3,7 @@ package dev.hermes.android.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.hermes.android.HermesApplication
 import dev.hermes.android.gateway.GatewayClient
 import dev.hermes.android.gateway.GatewayService
 import dev.hermes.android.gateway.HermesRuntime
@@ -40,7 +41,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     init {
         GatewayService.start(app)
         viewModelScope.launch {
-            val client = withContext(Dispatchers.IO) { HermesRuntime.client(app) }
+            // A Python failure here must show on screen, not close the app: the error text is the only
+            // diagnostic available on a device without adb.
+            val client = try {
+                withContext(Dispatchers.IO) { HermesRuntime.client(app) }
+            } catch (e: Throwable) {
+                _status.value = "Falha ao iniciar: " + (HermesApplication.startError ?: e.toString())
+                return@launch
+            }
             gateway = client
             launch { client.events.collect { handleEvent(it) } }
             launch {

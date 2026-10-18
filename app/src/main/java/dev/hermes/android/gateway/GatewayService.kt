@@ -20,7 +20,8 @@ class GatewayService : Service() {
         super.onCreate()
         createChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-        Thread({ HermesRuntime.client(this) }, "hermes-start").start()
+        // Errors are shown by ChatViewModel; here they must not escape, or the whole process dies.
+        Thread({ runCatching { HermesRuntime.client(this) } }, "hermes-start").start()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY

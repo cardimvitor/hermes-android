@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit
 
 data class ChatMessage(val fromUser: Boolean, val text: String)
 
+/** A dangerous command the agent wants to run. The user picks "once" or "deny". */
+data class PendingApproval(val requestId: String, val command: String, val description: String)
+
 class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -28,6 +31,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy
 
+    private val _approval = MutableStateFlow<PendingApproval?>(null)
+    val approval: StateFlow<PendingApproval?> = _approval
+
     private var gateway: GatewayClient? = null
     private var sessionId: String? = null
 
@@ -37,6 +43,19 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val client = withContext(Dispatchers.IO) { HermesRuntime.client(app) }
             gateway = client
             launch { client.events.collect { handleEvent(it) } }
+            launch {
+                client.requests.collect { request ->
+                    if (request.method == "approval") {
+                        _approval.value = PendingApproval(
+                            requestId = request.id,
+                            command = request.params.optString("command"),
+                            description = request.params.optString("description"),
+                        )
+                    }
+                }
+            }
+            // Without this the gateway never asks for approval and denies dangerous commands silently.
+            client.announceCapabilities()
 
             val response = withContext(Dispatchers.IO) {
                 client.call("session.create", JSONObject().put("cols", 80)).get(60, TimeUnit.SECONDS)
@@ -62,6 +81,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 _messages.update { it.dropLast(1) + ChatMessage(false, errorText(response, "Erro")) }
             }
         }
+    }
+
+    /** [choice] is one of the gateway's ApprovalChoice values: "once", "session", "always" or "deny". */
+    fun answerApproval(choice: String) {
+        val pending = _approval.value ?: return
+        gateway?.respond(pending.requestId, JSONObject().put("choice", choice))
+        _approval.value = null
     }
 
     private fun handleEvent(event: JSONObject) {

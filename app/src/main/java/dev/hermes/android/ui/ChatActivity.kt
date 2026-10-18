@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -48,11 +50,27 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
     val messages by model.messages.collectAsState()
     val status by model.status.collectAsState()
     val busy by model.busy.collectAsState()
+    val approval by model.approval.collectAsState()
     var draft by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    approval?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { model.answerApproval("deny") },
+            title = { Text("Permitir este comando?") },
+            text = {
+                Column {
+                    if (pending.description.isNotEmpty()) Text(pending.description)
+                    Text(pending.command, modifier = Modifier.padding(top = 8.dp))
+                }
+            },
+            confirmButton = { TextButton(onClick = { model.answerApproval("once") }) { Text("Permitir uma vez") } },
+            dismissButton = { TextButton(onClick = { model.answerApproval("deny") }) { Text("Negar") } },
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize().imePadding().padding(16.dp)) {

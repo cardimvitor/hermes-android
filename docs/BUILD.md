@@ -23,12 +23,19 @@ Cobertura atual:
 - `test_bridge_host.py`: sobe o gateway real pela ponte em memória e confere `gateway.ready`,
   `session.list`, `session.create`, erro de método desconhecido e zero linhas fora de JSON.
 - `test_check_elf_16kb.py`: detector de alinhamento 4 KB / 16 KB com ELFs sintéticos.
+- `test_bridge_host.py::test_server_request_round_trip_through_bridge`: aprovação enviada pelo
+  gateway, resposta do app pela ponte, resultado devolvido ao chamador.
 - `test_export_requirements.py`: a lista Android não tem marcadores nem pacotes só de desktop.
 
 ## Dados de rede necessários para o build
 O build precisa destes domínios liberados: `dl.google.com` (SDK e AGP),
 `maven.google.com`, `repo1.maven.org`, `chaquo.com` (wheels do Chaquopy) e
 `www.python.org` (somente se o Python for baixado manualmente).
+
+## Harness Kotlin contra o gateway real
+`tests/host/kotlin/run.sh` compila `GatewayClient.kt` e roda o gateway Python por pipes:
+`client.capabilities`, `session.create`, `session.list`, erro de método e encerramento.
+Precisa dos jars do kotlinc e das coroutines em `$JARS` (ver o script).
 
 ## Gate de 16 KB (sobre o APK construído)
 ```bash

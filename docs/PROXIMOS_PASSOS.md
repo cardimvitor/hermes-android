@@ -56,3 +56,13 @@ que a resposta aparece e que um comando perigoso gera o diálogo de aprovação.
 - Não usar o nome do modelo nem "Claude" em mensagens de commit, nem coautor.
 - Não fazer force-push em `main`, sem autorização explícita do usuário.
 - Após push, abrir a PR (draft) se ainda não existir; a PR #1 já existe.
+
+## Resultado da tentativa de build (2026-10-18)
+- Rede: `dl.google.com`, `chaquo.com` e `www.python.org` responderam (200/302).
+- Passo 2 (`tests/host`): 16 passed.
+- Submódulo inicializado em `22063fc0`. SDK 35 instalado em `~/android-sdk`. JDK 17 (Temurin) apontado ao Gradle por `-Porg.gradle.java.installations.paths`.
+- Maven Central retorna 429 com rajadas; o build resolveu as dependências com retry.
+- Locale: sem `LANG=C.UTF-8` o `findDebugPythonCommand` do Chaquopy gera caminho corrompido. Com UTF-8 passa.
+- **Bloqueio (passo 3.5):** `installDebugPythonRequirements` falha em
+  `firecrawl-anydoc==0.2.4` ("from versions: none"). O pacote só tem wheels `musllinux`/`win_amd64` e sdist no PyPI, sem wheel Android. O pin vem de `upstream/hermes-agent/pyproject.toml`, linha 66 (dependência principal, `python_version >= '3.14'`), e é mantido pelo exportador `tools/export_android_requirements.py`. Não foi trocado nem removido: decisão de produto, a ser tomada pelo responsável.
+- Passos 4 (gate 16 KB) e 5 (aparelho) não executados: dependem de APK.

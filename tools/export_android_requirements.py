@@ -18,8 +18,10 @@ from pathlib import Path
 # and nemo-relay, which the upstream Termux package also leaves out: its toolchain does not
 # build for this target. firecrawl-anydoc ships no Android wheel on the Chaquopy index (only
 # musllinux, win_amd64 and an sdist), so pip cannot install it; PDF reads are unavailable on
-# the APK until a wheel exists or the upstream pin changes.
-SKIP = re.compile(r"^(pywin32|pywinpty|winrt-|tzdata|psutil @ git|nemo-relay|firecrawl-anydoc)")
+# the APK until a wheel exists or the upstream pin changes. pillow-heif is a soft dependency
+# of upstream (agent/image_routing.py imports it under suppress()) and needs a native libheif
+# build with no Android wheel, so HEIC/HEIF input is unavailable on the APK.
+SKIP = re.compile(r"^(pywin32|pywinpty|winrt-|tzdata|psutil @ git|nemo-relay|firecrawl-anydoc|pillow-heif)")
 NAME = re.compile(r"^\s*([A-Za-z0-9_.\-\[\],]+?)\s*(==|>=|<=|>|<|~=|@|;|$)")
 
 

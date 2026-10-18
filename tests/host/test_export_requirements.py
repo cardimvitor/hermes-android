@@ -16,3 +16,5 @@ def test_requirements_have_no_markers_and_no_desktop_only_packages(tmp_path):
     assert any(s.startswith("nemo-relay") for s in skipped)
     assert "firecrawl-anydoc" not in text
     assert any(s.startswith("firecrawl-anydoc") for s in skipped)
+    assert "pillow-heif" not in text
+    assert any(s.startswith("pillow-heif") for s in skipped)

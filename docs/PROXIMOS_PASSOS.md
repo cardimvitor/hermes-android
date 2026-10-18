@@ -72,3 +72,10 @@ que a resposta aparece e que um comando perigoso gera o diálogo de aprovação.
 - Próximo bloqueio: `installDebugPythonRequirements` falha em `cryptography==50.0.1` (sem wheel Android).
 - Causa raiz: o índice do Chaquopy (`https://chaquo.com/pypi-13.1/<pacote>/`) não tem wheels Android `cp314` para os binários. Os mais recentes são `cp313` (cryptography 42.0.8, Pillow, psutil). `resvg-py` e `pydantic-core` não aparecem no índice.
 - Decisão necessária: (a) Python 3.13 no APK, o que quebra a exigência `>=3.14` e as dependências gated a 3.14 do upstream; (b) aguardar wheels cp314 do Chaquopy; (c) compilar as wheels com a toolchain do Chaquopy.
+
+## Python 3.13 como alternativa (testado em 2026-10-18)
+- Testado com `version = "3.13"` no Chaquopy e `python3` 3.13 no PATH. Falha em `cryptography==50.0.1`: o índice só tem `42.0.8` para cp313. Revertido para 3.14 (exigência do upstream).
+- Pins com wheel cp313 Android disponível: `cryptography` 42.0.8 (pin: 50.0.1), `psutil` 7.1.3 (pin: 7.2.2), `Pillow` 11.0.0 (pin: 12.3.0). Baixar essas pins troca correções de segurança do upstream (a 50.0.1 é posterior à 42.0.8).
+- Sem wheel Android em nenhuma versão no índice: `pydantic-core` (dependência de `pydantic==2.13.4`, núcleo do agente) e `resvg-py==0.4.0`. Isso bloqueia 3.13 e 3.14.
+- Firecrawl-anydoc: wheels só para macOS/manylinux/musllinux/Windows e sdist. Não há tag Android.
+- Conclusão: nenhuma das duas versões de Python fecha o build com o índice atual do Chaquopy. Próximos passos viáveis: compilar `pydantic-core` (Rust, cross-compile para Android) e as wheels nativas com a toolchain do Chaquopy, ou pedir ao Chaquopy as wheels cp314/android.

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 
 class ChatActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +48,29 @@ class ChatActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+/** A message the user sent, with a button that copies its text to the clipboard. */
+@Composable
+private fun UserMessage(text: String) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    // The label goes back to "Copiar" after a moment.
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(1500)
+            copied = false
+        }
+    }
+    Column(horizontalAlignment = Alignment.End) {
+        Text(text = text, modifier = Modifier.padding(8.dp))
+        TextButton(
+            onClick = {
+                clipboard.setText(AnnotatedString(text))
+                copied = true
+            },
+        ) { Text(if (copied) "Copiado" else "Copiar") }
     }
 }
 
@@ -131,10 +157,14 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = if (message.fromUser) Arrangement.End else Arrangement.Start,
                 ) {
-                    Text(
-                        text = message.text.ifEmpty { "…" },
-                        modifier = Modifier.padding(8.dp),
-                    )
+                    if (message.fromUser) {
+                        UserMessage(message.text)
+                    } else {
+                        Text(
+                            text = message.text.ifEmpty { "…" },
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }
                 }
             }
         }

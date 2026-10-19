@@ -95,3 +95,21 @@ que a resposta aparece e que um comando perigoso gera o diálogo de aprovação.
 - Causa: as extensões cross-compiladas não declaravam `NEEDED libpython3.14.so`. Os módulos do próprio Chaquopy declaram, e o APK traz essa biblioteca em `lib/<abi>/`.
 - Correção aplicada nos wheels: `patchelf --add-needed libpython3.14.so` em cada `.so` (ver o script de wheels fora do repositório). Qualquer módulo nativo recompilado precisa dessa dependência.
 - O app mostra o erro de inicialização na tela (`ChatViewModel`, `HermesApplication`, `GatewayService`), em vez de fechar.
+
+## Checklist: o que falta para rodar 100% (2026-10-19)
+Feito e verificado nesta sandbox:
+- `assembleDebug` passa (arm64-v8a e x86_64); gate de 16 KB passa (`checked=20 failed=0`).
+- Resolução das dependências para Android só com wheels passa (pure do PyPI, nativos locais).
+- Módulos nativos declaram `libpython3.14.so`; psutil trata `android` como Linux.
+- Chave DeepSeek guardada criptografada (EncryptedSharedPreferences); sem chave o chat avisa.
+- Erros de inicialização aparecem na tela.
+
+Falta, em ordem:
+1. Validação em aparelho (passo 5): abrir, "Pronto", resposta do modelo com chave real, diálogo de aprovação. Depende de aparelho e chave do usuário.
+2. Import de todos os módulos do Hermes no runtime do Android (Fase 2). Só o startup foi testado.
+3. Reprodutibilidade (Fase 1): os wheels nativos e os scripts de cross-build estão fora do repositório. Falta publicar os wheels e versionar os scripts.
+4. Gate offline com `--no-index` (Fase 1): o pip ainda usa o PyPI para os pacotes puros.
+5. Fase 5: login OAuth (Claude, ChatGPT) e escolha de provedor/fallback na UI. Hoje só há DeepSeek.
+6. Fases 6 a 8 (segundo plano, ferramentas, release) não começaram.
+7. Testes instrumentados e no emulador (plano 6.1): precisam de KVM, indisponível nesta sandbox.
+8. Licença do Chaquopy antes de distribuir (plano 2.5).

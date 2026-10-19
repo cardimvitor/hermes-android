@@ -47,6 +47,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _steps = MutableStateFlow<List<ActivityStep>>(emptyList())
     val steps: StateFlow<List<ActivityStep>> = _steps
 
+    /** Delegated child agents of the current turn, one card each. Cleared when a new message is sent. */
+    private val _subagents = MutableStateFlow<List<SubagentCard>>(emptyList())
+    val subagents: StateFlow<List<SubagentCard>> = _subagents
+
     private var gateway: GatewayClient? = null
     private var sessionId: String? = null
 
@@ -101,6 +105,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         val client = gateway ?: return
         _busy.value = true
         _steps.value = emptyList()
+        _subagents.value = emptyList()
         _phase.value = "Enviando…"
         _messages.update { it + ChatMessage(true, text) + ChatMessage(false, "") }
         viewModelScope.launch {
@@ -126,7 +131,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private fun handleEvent(event: JSONObject) {
         if (event.optString("session_id") != sessionId) return
         val payload = event.optJSONObject("payload")
-        when (event.optString("type")) {
+        val type = event.optString("type")
+        if (type.startsWith("subagent.")) {
+            _subagents.update { SubagentFold.apply(it, type, payload ?: JSONObject()) }
+            return
+        }
+        when (type) {
             "message.start" -> _phase.value = "Pensando…"
             "thinking.delta", "reasoning.delta" -> {
                 if (_steps.value.none { it.running }) _phase.value = "Pensando…"

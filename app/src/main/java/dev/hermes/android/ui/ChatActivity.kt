@@ -9,7 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -53,6 +57,64 @@ class ChatActivity : ComponentActivity() {
 }
 
 private const val VISIBLE_STEPS = 5
+
+/** One card per delegated child agent, side by side, so parallel work is visible at a glance. */
+@Composable
+private fun SubagentsTile(cards: List<SubagentCard>) {
+    if (cards.isEmpty()) return
+    Text(
+        text = "Agentes paralelos (${cards.count { !it.finished }} ativos)",
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.padding(start = 4.dp),
+    )
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 4.dp),
+    ) {
+        items(cards, key = { it.id }) { card -> SubagentCardView(card) }
+    }
+}
+
+@Composable
+private fun SubagentCardView(card: SubagentCard) {
+    Surface(
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.width(180.dp),
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = card.goal.ifEmpty { "Subagente" },
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(text = statusLabel(card), style = MaterialTheme.typography.labelMedium)
+            if (card.lastTool.isNotEmpty()) {
+                Text(
+                    text = "Última: ${card.lastTool}",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val time = card.seconds?.let { " · ${"%.1f".format(it)}s" }.orEmpty()
+            Text(
+                text = "${card.toolCount} ferramenta(s)$time",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+private fun statusLabel(card: SubagentCard): String = when (card.status) {
+    "queued" -> "Na fila"
+    "running" -> "Executando"
+    "completed" -> "Concluído"
+    "interrupted" -> "Interrompido"
+    "timeout" -> "Tempo esgotado"
+    else -> "Falhou (${card.status})"
+}
 
 /**
  * Live summary of what the agent is doing: the current phase, then the last few tool calls with their
@@ -148,6 +210,7 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
     val approval by model.approval.collectAsState()
     val phase by model.phase.collectAsState()
     val steps by model.steps.collectAsState()
+    val subagents by model.subagents.collectAsState()
     var draft by remember { mutableStateOf("") }
     var showKeyDialog by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
@@ -220,6 +283,7 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
             }
         }
 
+        SubagentsTile(cards = subagents)
         ActivityPanel(phase = phase, steps = steps, busy = busy)
 
         Row(verticalAlignment = Alignment.CenterVertically) {

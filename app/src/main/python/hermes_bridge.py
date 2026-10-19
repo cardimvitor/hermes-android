@@ -91,6 +91,11 @@ def configure_model(home, provider, model):
     return True
 
 
+def set_env(name, value):
+    """Set one environment variable before ``start``. Used for provider API keys."""
+    os.environ[name] = value
+
+
 def start(home, sink, env=None):
     """Start the gateway in a background thread.
 

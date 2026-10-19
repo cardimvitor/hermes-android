@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hermes.android.HermesApplication
+import dev.hermes.android.gateway.ApiKeyStore
 import dev.hermes.android.gateway.GatewayClient
 import dev.hermes.android.gateway.GatewayService
 import dev.hermes.android.gateway.HermesRuntime
@@ -70,8 +71,18 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             }
             val id = response.optJSONObject("result")?.optString("session_id").orEmpty()
             sessionId = id.ifEmpty { null }
-            _status.value = if (id.isEmpty()) errorText(response, "Falha ao criar sessão") else "Pronto"
+            _status.value = when {
+                id.isEmpty() -> errorText(response, "Falha ao criar sessão")
+                ApiKeyStore.get(app, ApiKeyStore.DEEPSEEK).isEmpty() -> "Sem chave de API: toque em Chave"
+                else -> "Pronto"
+            }
         }
+    }
+
+    /** Saves the DeepSeek key. The gateway reads keys at start, so the app must be restarted to use it. */
+    fun saveDeepseekKey(key: String) {
+        ApiKeyStore.save(getApplication(), ApiKeyStore.DEEPSEEK, key)
+        _status.value = "Chave salva. Reinicie o app para usar."
     }
 
     fun send(text: String) {

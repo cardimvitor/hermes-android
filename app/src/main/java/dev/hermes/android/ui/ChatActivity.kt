@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -46,12 +49,36 @@ class ChatActivity : ComponentActivity() {
 }
 
 @Composable
+private fun ApiKeyDialog(onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var draft by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Chave DeepSeek") },
+        text = {
+            Column {
+                Text("Guardada criptografada no aparelho. Reinicie o app depois de salvar.")
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(draft) }) { Text("Salvar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
+
+@Composable
 fun ChatScreen(model: ChatViewModel = viewModel()) {
     val messages by model.messages.collectAsState()
     val status by model.status.collectAsState()
     val busy by model.busy.collectAsState()
     val approval by model.approval.collectAsState()
     var draft by remember { mutableStateOf("") }
+    var showKeyDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -73,8 +100,26 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().imePadding().padding(16.dp)) {
-        Text(text = status, style = MaterialTheme.typography.labelMedium)
+    if (showKeyDialog) {
+        ApiKeyDialog(
+            onSave = { key ->
+                model.saveDeepseekKey(key)
+                showKeyDialog = false
+            },
+            onDismiss = { showKeyDialog = false },
+        )
+    }
+
+    // safeDrawing keeps the content clear of the status bar, navigation bar and keyboard (targetSdk 35 is edge-to-edge).
+    Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = status,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = { showKeyDialog = true }) { Text("Chave") }
+        }
 
         LazyColumn(
             state = listState,

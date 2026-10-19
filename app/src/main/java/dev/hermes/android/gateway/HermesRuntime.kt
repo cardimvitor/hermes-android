@@ -34,7 +34,9 @@ object HermesRuntime {
         // First run only: without a provider the gateway falls back to AWS Bedrock, which the APK
         // does not ship. Provider and key selection in the UI is still to be built (plan, phase 5).
         bridge.callAttr("configure_model", home, DEFAULT_PROVIDER, DEFAULT_MODEL)
-        // No provider keys yet: they will come from the Android Keystore, not from plain storage.
+        // Keys are encrypted at rest (ApiKeyStore). The gateway reads them only at start.
+        val deepseek = ApiKeyStore.get(app, ApiKeyStore.DEEPSEEK)
+        if (deepseek.isNotEmpty()) bridge.callAttr("set_env", ApiKeyStore.DEEPSEEK, deepseek)
         bridge.callAttr("start", home, sink, null)
         return client
     }

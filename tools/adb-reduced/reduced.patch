@@ -1,0 +1,200 @@
+diff -ru -x .git /root/nativebuild/aosp-adb/adb_mdns.h src/adb_mdns.h
+--- /root/nativebuild/aosp-adb/adb_mdns.h	2026-10-19 20:44:15.155519021 +0000
++++ src/adb_mdns.h	2026-10-19 21:03:18.926861404 +0000
+@@ -48,7 +48,16 @@
+ extern const char* _Nonnull kADBDNSServiceTxtRecords[kNumADBDNSServices];
+ 
+ #if ADB_HOST
+-#include "client/openscreen/mdns_service_info.h"
++namespace mdns {
++// Local stand-in for client/openscreen/mdns_service_info.h (openscreen is not part of this build).
++struct ServiceInfo {
++    std::string instance_name;
++    std::string service_name;
++    uint16_t port = 0;
++    std::string v4_address_string() const { return {}; }
++    std::string v6_address_string() const { return {}; }
++};
++}  // namespace mdns
+ // ADB Secure DNS service interface. Used to query what ADB Secure DNS services have been
+ // resolved, and to run some kind of callback for each one.
+ using adb_secure_foreach_service_callback = std::function<void(const mdns::ServiceInfo& si)>;
+diff -ru -x .git /root/nativebuild/aosp-adb/client/file_sync_client.cpp src/client/file_sync_client.cpp
+--- /root/nativebuild/aosp-adb/client/file_sync_client.cpp	2026-10-19 20:44:15.159054337 +0000
++++ src/client/file_sync_client.cpp	2026-10-19 21:03:18.927823832 +0000
+@@ -238,7 +238,7 @@
+             have_stat_v2_ = CanUseFeature(*features, kFeatureStat2);
+             have_ls_v2_ = CanUseFeature(*features, kFeatureLs2);
+             have_sendrecv_v2_ = CanUseFeature(*features, kFeatureSendRecv2);
+-            have_sendrecv_v2_brotli_ = CanUseFeature(*features, kFeatureSendRecv2Brotli);
++            have_sendrecv_v2_brotli_ = false;  // brotli is not built into this adb
+             have_sendrecv_v2_lz4_ = CanUseFeature(*features, kFeatureSendRecv2LZ4);
+             have_sendrecv_v2_zstd_ = CanUseFeature(*features, kFeatureSendRecv2Zstd);
+             have_sendrecv_v2_dry_run_send_ = CanUseFeature(*features, kFeatureSendRecv2DryRunSend);
+@@ -657,7 +657,7 @@
+         syncsendbuf sbuf;
+         sbuf.id = ID_DATA;
+ 
+-        std::variant<std::monostate, NullEncoder, BrotliEncoder, LZ4Encoder, ZstdEncoder>
++        std::variant<std::monostate, NullEncoder, LZ4Encoder, ZstdEncoder>
+                 encoder_storage;
+         Encoder* encoder = nullptr;
+         switch (compression) {
+@@ -666,7 +666,7 @@
+                 break;
+ 
+             case CompressionType::Brotli:
+-                encoder = &encoder_storage.emplace<BrotliEncoder>(SYNC_DATA_MAX);
++                LOG(FATAL) << "brotli is not built into this adb";
+                 break;
+ 
+             case CompressionType::LZ4:
+@@ -1170,7 +1170,7 @@
+     uint64_t bytes_copied = 0;
+ 
+     Block buffer(SYNC_DATA_MAX);
+-    std::variant<std::monostate, NullDecoder, BrotliDecoder, LZ4Decoder, ZstdDecoder>
++    std::variant<std::monostate, NullDecoder, LZ4Decoder, ZstdDecoder>
+             decoder_storage;
+     Decoder* decoder = nullptr;
+ 
+@@ -1181,7 +1181,7 @@
+             break;
+ 
+         case CompressionType::Brotli:
+-            decoder = &decoder_storage.emplace<BrotliDecoder>(buffer_span);
++            LOG(FATAL) << "brotli is not built into this adb";
+             break;
+ 
+         case CompressionType::LZ4:
+diff -ru -x .git /root/nativebuild/aosp-adb/client/main.cpp src/client/main.cpp
+--- /root/nativebuild/aosp-adb/client/main.cpp	2026-10-19 20:44:15.159054337 +0000
++++ src/client/main.cpp	2026-10-19 21:03:18.927972153 +0000
+@@ -40,7 +40,9 @@
+ #include "client/mdns_utils.h"
+ #include "client/transport_client.h"
+ #include "client/usb.h"
+-#include "client/usb_libusb_hotplug.h"
++namespace libusb {
++void usb_init();  // stub in stubs/adb_stubs.cpp
++}  // namespace libusb
+ #include "commandline.h"
+ #include "sysdeps/chrono.h"
+ #include "transport.h"
+diff -ru -x .git /root/nativebuild/aosp-adb/compression_utils.h src/compression_utils.h
+--- /root/nativebuild/aosp-adb/compression_utils.h	2026-10-19 20:44:15.161885704 +0000
++++ src/compression_utils.h	2026-10-19 21:03:18.927124368 +0000
+@@ -22,8 +22,6 @@
+ 
+ #include <android-base/logging.h>
+ 
+-#include <brotli/decode.h>
+-#include <brotli/encode.h>
+ #include <lz4frame.h>
+ #include <zstd.h>
+ 
+@@ -133,104 +131,7 @@
+     }
+ };
+ 
+-struct BrotliDecoder final : public Decoder {
+-    explicit BrotliDecoder(std::span<char> output_buffer)
+-        : Decoder(output_buffer),
+-          decoder_(BrotliDecoderCreateInstance(nullptr, nullptr, nullptr),
+-                   BrotliDecoderDestroyInstance) {}
+ 
+-    DecodeResult Decode(std::span<char>* output) final {
+-        size_t available_in = input_buffer_.front_size();
+-        const uint8_t* next_in = reinterpret_cast<const uint8_t*>(input_buffer_.front_data());
+-
+-        size_t available_out = output_buffer_.size();
+-        uint8_t* next_out = reinterpret_cast<uint8_t*>(output_buffer_.data());
+-
+-        BrotliDecoderResult r = BrotliDecoderDecompressStream(
+-                decoder_.get(), &available_in, &next_in, &available_out, &next_out, nullptr);
+-
+-        size_t bytes_consumed = input_buffer_.front_size() - available_in;
+-        input_buffer_.drop_front(bytes_consumed);
+-
+-        size_t bytes_emitted = output_buffer_.size() - available_out;
+-        *output = std::span<char>(output_buffer_.data(), bytes_emitted);
+-
+-        switch (r) {
+-            case BROTLI_DECODER_RESULT_SUCCESS:
+-                // We need to wait for ID_DONE from the other end.
+-                return finished_ ? DecodeResult::Done : DecodeResult::NeedInput;
+-            case BROTLI_DECODER_RESULT_ERROR:
+-                return DecodeResult::Error;
+-            case BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT:
+-                // Brotli guarantees as one of its invariants that if it returns NEEDS_MORE_INPUT,
+-                // it will consume the entire input buffer passed in, so we don't have to worry
+-                // about bytes left over in the front block with more input remaining.
+-                return DecodeResult::NeedInput;
+-            case BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT:
+-                return DecodeResult::MoreOutput;
+-        }
+-    }
+-
+-  private:
+-    std::unique_ptr<BrotliDecoderState, void (*)(BrotliDecoderState*)> decoder_;
+-};
+-
+-struct BrotliEncoder final : public Encoder {
+-    explicit BrotliEncoder(size_t output_block_size)
+-        : Encoder(output_block_size),
+-          output_block_(output_block_size_),
+-          output_bytes_left_(output_block_size_),
+-          encoder_(BrotliEncoderCreateInstance(nullptr, nullptr, nullptr),
+-                   BrotliEncoderDestroyInstance) {
+-        BrotliEncoderSetParameter(encoder_.get(), BROTLI_PARAM_QUALITY, 1);
+-    }
+-
+-    EncodeResult Encode(Block* output) final {
+-        output->clear();
+-
+-        while (true) {
+-            size_t available_in = input_buffer_.front_size();
+-            const uint8_t* next_in = reinterpret_cast<const uint8_t*>(input_buffer_.front_data());
+-
+-            size_t available_out = output_bytes_left_;
+-            uint8_t* next_out = reinterpret_cast<uint8_t*>(
+-                    output_block_.data() + (output_block_size_ - output_bytes_left_));
+-
+-            BrotliEncoderOperation op = BROTLI_OPERATION_PROCESS;
+-            if (finished_) {
+-                op = BROTLI_OPERATION_FINISH;
+-            }
+-
+-            if (!BrotliEncoderCompressStream(encoder_.get(), op, &available_in, &next_in,
+-                                             &available_out, &next_out, nullptr)) {
+-                return EncodeResult::Error;
+-            }
+-
+-            size_t bytes_consumed = input_buffer_.front_size() - available_in;
+-            input_buffer_.drop_front(bytes_consumed);
+-
+-            output_bytes_left_ = available_out;
+-
+-            if (BrotliEncoderIsFinished(encoder_.get())) {
+-                output_block_.resize(output_block_size_ - output_bytes_left_);
+-                *output = std::move(output_block_);
+-                return EncodeResult::Done;
+-            } else if (output_bytes_left_ == 0) {
+-                *output = std::move(output_block_);
+-                output_block_.resize(output_block_size_);
+-                output_bytes_left_ = output_block_size_;
+-                return EncodeResult::MoreOutput;
+-            } else if (input_buffer_.empty()) {
+-                return EncodeResult::NeedInput;
+-            }
+-        }
+-    }
+-
+-  private:
+-    Block output_block_;
+-    size_t output_bytes_left_;
+-    std::unique_ptr<BrotliEncoderState, void (*)(BrotliEncoderState*)> encoder_;
+-};
+ 
+ struct LZ4Decoder final : public Decoder {
+     explicit LZ4Decoder(std::span<char> output_buffer)

@@ -124,9 +124,29 @@ def install_device_plugin(home):
 
     path = os.path.join(home, "config.yaml")
     text = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+    additions = []
     if "\ncomputer_use:" not in "\n" + text:
+        additions.append("computer_use:\n  backend: android\n")
+    if "\ntools:" not in "\n" + text:
+        additions.append(_eager_tools_yaml())
+    if additions:
         with open(path, "a", encoding="utf-8") as f:
-            f.write(("" if not text or text.endswith("\n") else "\n") + "computer_use:\n  backend: android\n")
+            f.write(("" if not text or text.endswith("\n") else "\n") + "".join(additions))
+
+
+def _eager_tools_yaml():
+    """``tools.tool_search.defer`` without computer_use.
+
+    By default computer_use sits behind the tool_search bridge, where the model rarely looks for it
+    and falls back to shell commands that Android blocks. An explicit list replaces the default
+    wholesale, so it is derived from the upstream default minus that one tool.
+    """
+    import json
+
+    from hermes_cli.config_defaults import DEFAULT_CONFIG
+
+    defer = [name for name in DEFAULT_CONFIG["tools"]["tool_search"]["defer"] if name != "computer_use"]
+    return "tools:\n  tool_search:\n    defer: " + json.dumps(defer) + "\n"
 
 
 def start(home, sink, env=None):

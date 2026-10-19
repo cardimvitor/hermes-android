@@ -121,7 +121,19 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     else list.dropLast(1) + last.copy(text = last.text + text)
                 }
             }
-            "message.complete" -> _busy.value = false
+            "message.complete" -> {
+                _busy.value = false
+                // The final text replaces the streamed deltas. On a failed turn (status "error") it is the
+                // only place the reason arrives, so without this the reply bubble stays "..." forever.
+                val text = payload?.optString("text").orEmpty()
+                if (text.isNotEmpty()) {
+                    _messages.update { list ->
+                        val last = list.lastOrNull()
+                        if (last == null || last.fromUser) list + ChatMessage(false, text)
+                        else list.dropLast(1) + last.copy(text = text)
+                    }
+                }
+            }
         }
     }
 

@@ -42,6 +42,12 @@ The build reproduces the binary from the pinned inputs. The binary itself is not
 
 - Compiles and links for arm64 with no errors. Output: 5.7 MB, PIE, interpreter `/system/bin/linker64`,
   NEEDED only `liblog`, `libandroid`, `libm`, `libdl`, `libc`. Passes `tools/check_elf_16kb.py`.
-- Not yet executed on a device. The container cannot run arm64 binaries (no qemu), so a device run is the
-  next check: `adb version`, then `adb pair host:port code`, `adb connect host:port`, `adb shell id`.
-- Not wired into the app yet, and not shipped in an APK.
+- Shipped in the APK as `app/src/main/jniLibs/arm64-v8a/libadb.so` (sha256
+  `9a06fcbfe428c5fe88985818cb9e4c10c69d66558f685642cca053f05151a67b`). It is extracted to the native
+  library directory and run from there, the same way as the Python launcher.
+- The phone pairs with itself: Developer options > Wireless debugging > Pair with code, then the ADB dialog
+  in the app (`AdbDialog.kt`) runs `pair` and `connect` through `AdbBridge.kt`. The agent uses the
+  `android_debug` tool (`hermes_device_plugin.py`), which calls the same bridge.
+- Not executed on a device by the author: the container cannot run arm64 binaries. The first device run is
+  the check: `ADB` in the app, pair, connect, then ask the agent for `shell id`.
+- Only arm64 ships. On x86_64 the tool reports itself unavailable.

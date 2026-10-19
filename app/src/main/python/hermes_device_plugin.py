@@ -117,5 +117,78 @@ class AndroidProvider(ComputerUseProvider):
         return True
 
 
+def _adb_bridge() -> Any:
+    from java import jclass  # Chaquopy: static methods on dev.hermes.android.device.AdbBridge
+
+    return jclass("dev.hermes.android.device.AdbBridge")
+
+
+def _adb_available() -> bool:
+    try:
+        return bool(_adb_bridge().available())
+    except Exception:
+        return False
+
+
+def _adb_error(message: str) -> str:
+    return json.dumps({"ok": False, "exit_code": -1, "output": message}, ensure_ascii=False)
+
+
+def _adb_tool(args: dict, **_: Any) -> str:
+    """Routes one android_debug call to AdbBridge. Results are the bridge's JSON: ok, exit_code, output."""
+    action = str(args.get("action") or "devices").strip().lower()
+    host = str(args.get("host") or "127.0.0.1").strip()
+    port = args.get("port")
+    bridge = _adb_bridge()
+    if action == "devices":
+        return str(bridge.devices())
+    if action == "pair":
+        code = str(args.get("pairing_code") or "").strip()
+        if not port or not code:
+            return _adb_error("pair needs port and pairing_code, from Wireless debugging > Pair with code")
+        return str(bridge.pair(f"{host}:{int(port)}", code))
+    if action == "connect":
+        if not port:
+            return _adb_error("connect needs port, the Wireless debugging port (not the pairing port)")
+        return str(bridge.connect(f"{host}:{int(port)}"))
+    if action == "shell":
+        command = str(args.get("command") or "").strip()
+        if not command:
+            return _adb_error("shell needs command")
+        return str(bridge.shell(command))
+    return _adb_error("unsupported action; use devices, pair, connect or shell")
+
+
+ANDROID_DEBUG_SCHEMA = {
+    "name": "android_debug",
+    "description": (
+        "Runs adb on this phone through its own Wireless debugging, so you can act on the device with shell commands "
+        "(open apps with am start, send input, take screenshots with screencap, read settings). Use devices to check "
+        "the connection. pair and connect take the values the user reads from Wireless debugging. Ask the user before "
+        "destructive commands: deleting data, uninstalling apps, or changing security settings."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["devices", "pair", "connect", "shell"]},
+            "host": {"type": "string", "description": "Address shown in Wireless debugging. Default 127.0.0.1."},
+            "port": {"type": "integer", "description": "Pairing port (pair) or connection port (connect)."},
+            "pairing_code": {"type": "string", "description": "Six-digit code from Pair with code (pair only)."},
+            "command": {"type": "string", "description": "Shell command to run on the phone (shell only)."},
+        },
+        "required": ["action"],
+    },
+}
+
+
 def register(ctx) -> None:
     ctx.register_computer_use_provider(AndroidProvider())
+    ctx.register_tool(
+        name="android_debug",
+        toolset="android",
+        schema=ANDROID_DEBUG_SCHEMA,
+        handler=_adb_tool,
+        check_fn=_adb_available,
+        description=ANDROID_DEBUG_SCHEMA["description"],
+        emoji="📱",
+    )

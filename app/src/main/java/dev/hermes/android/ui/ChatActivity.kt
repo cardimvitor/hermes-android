@@ -214,6 +214,7 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
     var draft by remember { mutableStateOf("") }
     var showKeyDialog by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
+    var showAdb by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
@@ -239,6 +240,10 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
         PermissionsDialog(onDismiss = { showPermissions = false })
     }
 
+    if (showAdb) {
+        AdbDialog(onDismiss = { showAdb = false })
+    }
+
     if (showKeyDialog) {
         ApiKeyDialog(
             onSave = { key ->
@@ -258,6 +263,7 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = { showPermissions = true }) { Text("Permissões") }
+            TextButton(onClick = { showAdb = true }) { Text("ADB") }
             TextButton(onClick = { showKeyDialog = true }) { Text("Chave") }
         }
 

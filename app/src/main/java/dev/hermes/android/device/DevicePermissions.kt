@@ -45,6 +45,9 @@ object DevicePermissions {
     fun notificationSettings(context: Context): Intent =
         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
 
+    /** Developer options, where Wireless debugging and its pairing code live. */
+    fun developerSettings(): Intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+
     /** App details: where the overflow menu offers "Allow restricted settings" for sideloaded apps. */
     fun appDetails(context: Context): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri(context))

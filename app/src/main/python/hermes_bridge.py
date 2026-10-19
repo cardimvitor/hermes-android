@@ -96,8 +96,11 @@ def set_env(name, value):
     os.environ[name] = value
 
 
+# The upstream discovery only accepts a plugin directory whose __init__.py mentions
+# register_computer_use_provider or ComputerUseProvider, so the docstring must keep those words.
 _DEVICE_PLUGIN_INIT = (
-    '"""Android computer-use provider; the code lives in the APK (hermes_device_plugin)."""\n'
+    '"""Android ComputerUseProvider. hermes_device_plugin.register() calls ctx.register_computer_use_provider;\n'
+    'the code lives in the APK."""\n'
     "from hermes_device_plugin import register  # noqa: F401\n"
 )
 _DEVICE_PLUGIN_YAML = (
@@ -112,8 +115,7 @@ def install_device_plugin(home):
     """Write the Android computer-use provider into ``home/plugins/android`` and select it.
 
     The provider is a plugin directory named after the backend (``computer_use.backend: android``).
-    Its code is imported from the APK, so only the two-line loader is written to disk. The backend
-    is set only when config.yaml has no ``computer_use`` section, so a later user choice is kept.
+    Its code is imported from the APK, so only a short loader is written to disk.
     """
     plugin_dir = os.path.join(home, "plugins", "android")
     os.makedirs(plugin_dir, exist_ok=True)
@@ -121,32 +123,54 @@ def install_device_plugin(home):
         f.write(_DEVICE_PLUGIN_INIT)
     with open(os.path.join(plugin_dir, "plugin.yaml"), "w", encoding="utf-8") as f:
         f.write(_DEVICE_PLUGIN_YAML)
-
-    path = os.path.join(home, "config.yaml")
-    text = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
-    additions = []
-    if "\ncomputer_use:" not in "\n" + text:
-        additions.append("computer_use:\n  backend: android\n")
-    if "\ntools:" not in "\n" + text:
-        additions.append(_eager_tools_yaml())
-    if additions:
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(("" if not text or text.endswith("\n") else "\n") + "".join(additions))
+    _merge_device_config(os.path.join(home, "config.yaml"))
 
 
-def _eager_tools_yaml():
-    """``tools.tool_search.defer`` without computer_use.
+def _merge_device_config(path):
+    """Make computer_use usable on Android in config.yaml, keeping every other setting.
 
-    By default computer_use sits behind the tool_search bridge, where the model rarely looks for it
-    and falls back to shell commands that Android blocks. An explicit list replaces the default
-    wholesale, so it is derived from the upstream default minus that one tool.
+    - ``computer_use.backend: android``, unless the user chose a backend other than the upstream
+      default (``cua``, which has no Android support).
+    - ``tools.tool_search.defer`` without computer_use. By default that tool sits behind the
+      tool_search bridge, where the model rarely looks for it and falls back to shell commands that
+      Android blocks. An explicit list replaces the default wholesale, so a missing list is derived
+      from the upstream default.
     """
-    import json
+    import io
 
     from hermes_cli.config_defaults import DEFAULT_CONFIG
+    from ruamel.yaml import YAML
 
-    defer = [name for name in DEFAULT_CONFIG["tools"]["tool_search"]["defer"] if name != "computer_use"]
-    return "tools:\n  tool_search:\n    defer: " + json.dumps(defer) + "\n"
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    text = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+    data = yaml.load(text) or {}
+
+    computer_use = data.get("computer_use")
+    if not isinstance(computer_use, dict):
+        computer_use = {}
+        data["computer_use"] = computer_use
+    if computer_use.get("backend") in (None, "", "cua"):
+        computer_use["backend"] = "android"
+
+    tools = data.get("tools")
+    if not isinstance(tools, dict):
+        tools = {}
+        data["tools"] = tools
+    tool_search = tools.get("tool_search")
+    if not isinstance(tool_search, dict):
+        tool_search = {}
+        tools["tool_search"] = tool_search
+    defer = tool_search.get("defer")
+    if defer is None:
+        defer = list(DEFAULT_CONFIG["tools"]["tool_search"]["defer"])
+    tool_search["defer"] = [name for name in defer if name != "computer_use"]
+
+    out = io.StringIO()
+    yaml.dump(data, out)
+    if out.getvalue() != text:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(out.getvalue())
 
 
 def start(home, sink, env=None):

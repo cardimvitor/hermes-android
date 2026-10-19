@@ -96,6 +96,39 @@ def set_env(name, value):
     os.environ[name] = value
 
 
+_DEVICE_PLUGIN_INIT = (
+    '"""Android computer-use provider; the code lives in the APK (hermes_device_plugin)."""\n'
+    "from hermes_device_plugin import register  # noqa: F401\n"
+)
+_DEVICE_PLUGIN_YAML = (
+    "name: android\n"
+    "description: Opens installed apps and reads or drives the screen through the Hermes accessibility service.\n"
+    "version: 0.1.0\n"
+    "author: Hermes Android\n"
+)
+
+
+def install_device_plugin(home):
+    """Write the Android computer-use provider into ``home/plugins/android`` and select it.
+
+    The provider is a plugin directory named after the backend (``computer_use.backend: android``).
+    Its code is imported from the APK, so only the two-line loader is written to disk. The backend
+    is set only when config.yaml has no ``computer_use`` section, so a later user choice is kept.
+    """
+    plugin_dir = os.path.join(home, "plugins", "android")
+    os.makedirs(plugin_dir, exist_ok=True)
+    with open(os.path.join(plugin_dir, "__init__.py"), "w", encoding="utf-8") as f:
+        f.write(_DEVICE_PLUGIN_INIT)
+    with open(os.path.join(plugin_dir, "plugin.yaml"), "w", encoding="utf-8") as f:
+        f.write(_DEVICE_PLUGIN_YAML)
+
+    path = os.path.join(home, "config.yaml")
+    text = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+    if "\ncomputer_use:" not in "\n" + text:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(("" if not text or text.endswith("\n") else "\n") + "computer_use:\n  backend: android\n")
+
+
 def start(home, sink, env=None):
     """Start the gateway in a background thread.
 

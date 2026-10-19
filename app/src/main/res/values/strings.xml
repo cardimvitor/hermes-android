@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Hermes</string>
+    <string name="accessibility_service_description">Permite que o agente Hermes leia a tela e toque, digite e role em outros apps, quando você pedir.</string>
 </resources>

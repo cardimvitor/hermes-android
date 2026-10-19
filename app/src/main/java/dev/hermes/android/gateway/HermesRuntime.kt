@@ -34,6 +34,8 @@ object HermesRuntime {
         // First run only: without a provider the gateway falls back to AWS Bedrock, which the APK
         // does not ship. Provider and key selection in the UI is still to be built (plan, phase 5).
         bridge.callAttr("configure_model", home, DEFAULT_PROVIDER, DEFAULT_MODEL)
+        // Device control: the accessibility-backed computer_use provider (see hermes_device_plugin.py).
+        bridge.callAttr("install_device_plugin", home)
         // Shell tools get a `python3` (see PyTools). PYTHONHOME points at the extracted stdlib.
         val (bin, pyhome) = PyTools.prepare(app)
         bridge.callAttr("set_env", "PYTHONHOME", pyhome)

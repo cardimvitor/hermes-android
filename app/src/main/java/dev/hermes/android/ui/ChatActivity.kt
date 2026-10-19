@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -46,6 +47,48 @@ class ChatActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     ChatScreen()
                 }
+            }
+        }
+    }
+}
+
+private const val VISIBLE_STEPS = 5
+
+/**
+ * Live summary of what the agent is doing: the current phase, then the last few tool calls with their
+ * duration. Tap the header to collapse it. After the turn it stays as "Concluído: N passos" until the next send.
+ */
+@Composable
+private fun ActivityPanel(phase: String, steps: List<ActivityStep>, busy: Boolean) {
+    if (!busy && steps.isEmpty()) return
+    var expanded by remember { mutableStateOf(true) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = { expanded = !expanded }) {
+            val title = if (busy) phase.ifEmpty { "Trabalhando…" } else "Concluído: ${steps.size} passo(s)"
+            Text(
+                text = title + if (expanded) "  ▲" else "  ▼",
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (expanded) {
+            if (steps.size > VISIBLE_STEPS) {
+                Text(
+                    text = "… +${steps.size - VISIBLE_STEPS} anteriores",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+            steps.takeLast(VISIBLE_STEPS).forEach { step ->
+                val time = step.seconds?.let { "  (${"%.1f".format(it)}s)" }.orEmpty()
+                Text(
+                    text = (if (step.running) "…  " else "✓  ") + step.label + time,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
             }
         }
     }
@@ -103,6 +146,8 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
     val status by model.status.collectAsState()
     val busy by model.busy.collectAsState()
     val approval by model.approval.collectAsState()
+    val phase by model.phase.collectAsState()
+    val steps by model.steps.collectAsState()
     var draft by remember { mutableStateOf("") }
     var showKeyDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -168,6 +213,8 @@ fun ChatScreen(model: ChatViewModel = viewModel()) {
                 }
             }
         }
+
+        ActivityPanel(phase = phase, steps = steps, busy = busy)
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(

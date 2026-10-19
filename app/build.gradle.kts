@@ -33,6 +33,14 @@ android {
     kotlin {
         jvmToolchain(17)
     }
+
+    // libhermespy.so is a native executable (the device's `python3`). Android only lets the shell run
+    // native libraries that are extracted to nativeLibraryDir, not ones mapped straight out of the APK.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 chaquopy {

@@ -37,6 +37,8 @@ object HermesRuntime {
         // Shell tools get a `python3` (see PyTools). PYTHONHOME points at the extracted stdlib.
         val (bin, pyhome) = PyTools.prepare(app)
         bridge.callAttr("set_env", "PYTHONHOME", pyhome)
+        // The launcher dlopens libpython by absolute path; the shell's linker would not find it.
+        bridge.callAttr("set_env", "HERMES_LIBPYTHON", "${app.applicationInfo.nativeLibraryDir}/libpython3.14.so")
         bridge.callAttr("set_env", "PATH", "$bin:${System.getenv("PATH").orEmpty()}")
         // Keys are encrypted at rest (ApiKeyStore). The gateway reads them only at start.
         val deepseek = ApiKeyStore.get(app, ApiKeyStore.DEEPSEEK)

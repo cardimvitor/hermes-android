@@ -155,6 +155,12 @@ def _adb_tool(args: dict, **_: Any) -> str:
         command = str(args.get("command") or "").strip()
         if not command:
             return _adb_error("shell needs command")
+        # Same guard as the terminal tool: dangerous commands wait for the user's answer in the chat.
+        from tools.approval import check_all_command_guards
+
+        decision = check_all_command_guards(command, "local")
+        if not decision.get("approved"):
+            return _adb_error(decision.get("message") or "command was not approved")
         return str(bridge.shell(command))
     return _adb_error("unsupported action; use devices, pair, connect or shell")
 

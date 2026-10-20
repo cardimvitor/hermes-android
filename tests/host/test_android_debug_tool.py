@@ -115,3 +115,15 @@ def test_register_adds_tool_with_availability_check(adb):
     assert ctx.tool["toolset"] == "android"
     assert ctx.tool["schema"]["name"] == "android_debug"
     assert ctx.tool["check_fn"]() is True
+
+
+def test_denied_shell_command_never_reaches_the_bridge(adb, monkeypatch):
+    import tools.approval as approval
+
+    monkeypatch.setattr(
+        approval, "check_all_command_guards",
+        lambda command, env_type, **_: {"approved": False, "message": "denied by user"},
+    )
+    result = tool({"action": "shell", "command": "pm uninstall com.example"})
+    assert result == {"ok": False, "exit_code": -1, "output": "denied by user"}
+    assert adb.calls == []
